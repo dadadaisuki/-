@@ -1,0 +1,27 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local downloads / extracted distributions (do not commit)
+gradle-*-bin.zip
+gradle-tmp*/
+
+# Local SDK config (machine-specific)
+local.properties
+
+# OS / tooling
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Generated APKs / AABs
+*.apk
+*.aab
+
