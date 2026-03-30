@@ -10,19 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun FindGuideScreen(contentPadding: PaddingValues) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(contentPadding)
-            .padding(16.dp),
-    ) {
-        Text("找导游（前端占位）")
-        Text("后续会在这里做：导游列表 / 城市景点筛选 / 订单委托等。")
-    }
-}
-
-@Composable
 fun AiScreen(contentPadding: PaddingValues) {
     Column(
         modifier = Modifier
