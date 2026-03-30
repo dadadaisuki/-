@@ -67,6 +67,16 @@ dependencies {
 
     implementation("androidx.navigation:navigation-compose:2.8.4")
 
+    // 地图：osmdroid（免费离线可用，无需 API key）
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
+
+    // GPS 定位：Google FusedLocationProvider
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // 图片加载 Coil
+    implementation("io.coil-kt.coil3:coil-compose:3.0.4")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
+
     // Later: images/networking, etc.
 }
 

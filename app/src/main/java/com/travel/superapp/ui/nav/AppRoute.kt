@@ -15,6 +15,12 @@ sealed class AppRoute(
     data object Ai : AppRoute("tab/ai")
     data object Post : AppRoute("tab/post")
     data object Mine : AppRoute("tab/mine")
+    data object MapLights : AppRoute("entry/map_lights")
+    data object MyFootprints : AppRoute("entry/my_footprints")
+    data object Food : AppRoute("entry/food")
+    data object Shopping : AppRoute("entry/shopping")
+    data object RouteTracking : AppRoute("entry/route_tracking")
+
     data object Settings : AppRoute("settings")
 
     companion object {
@@ -26,11 +32,6 @@ sealed class AppRoute(
         )
 
         val entryRoutes: List<String> = listOf(
-            "entry/map_lights",
-            "entry/my_footprints",
-            "entry/food",
-            "entry/shopping",
-            "entry/walk",
             "entry/bike",
             "entry/car",
             "entry/group",

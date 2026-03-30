@@ -19,9 +19,9 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Place
@@ -57,8 +57,8 @@ fun HomeScreen(
             HomeEntry("我的足迹", Icons.Filled.Place, "entry/my_footprints"),
             HomeEntry("美食", Icons.Filled.Restaurant, "entry/food"),
             HomeEntry("购物", Icons.Filled.ShoppingBag, "entry/shopping"),
-            HomeEntry("漫步", Icons.Filled.DirectionsWalk, "entry/walk"),
-            HomeEntry("骑行", Icons.Filled.DirectionsBike, "entry/bike"),
+            HomeEntry("路径跟踪", Icons.Filled.Map, "entry/route_tracking"),
+            HomeEntry("骑行", Icons.AutoMirrored.Filled.DirectionsBike, "entry/bike"),
             HomeEntry("车行", Icons.Filled.DirectionsCar, "entry/car"),
             HomeEntry("组团", Icons.Filled.Groups, "entry/group"),
         )

@@ -3,6 +3,7 @@ package com.travel.superapp.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -17,11 +18,15 @@ import androidx.navigation.compose.rememberNavController
 import com.travel.superapp.ui.nav.AppRoute
 import com.travel.superapp.ui.screens.AiScreen
 import com.travel.superapp.ui.screens.FindGuideScreen
+import com.travel.superapp.ui.screens.FootprintScreen
+import com.travel.superapp.ui.screens.FoodScreen
 import com.travel.superapp.ui.screens.HomeScreen
 import com.travel.superapp.ui.screens.MineScreen
 import com.travel.superapp.ui.screens.PostScreen
 import com.travel.superapp.ui.screens.SettingsScreen
+import com.travel.superapp.ui.screens.ShoppingScreen
 import com.travel.superapp.ui.screens.SimpleEntryScreen
+import com.travel.superapp.ui.screens.map.RouteTrackingScreen
 import com.travel.superapp.ui.widgets.SuperBottomBar
 
 @Composable
@@ -92,6 +97,28 @@ private fun AppNavHost(
         composable(AppRoute.Settings.route) {
             SettingsScreen(
                 contentPadding = contentPadding,
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        // 主页入口页面 -> 真实屏幕
+        composable(AppRoute.MapLights.route) {
+            com.travel.superapp.ui.screens.map.MapScreen(
+                modifier = Modifier.padding(top = contentPadding.calculateTopPadding()),
+            )
+        }
+        composable(AppRoute.MyFootprints.route) {
+            FootprintScreen(modifier = Modifier.padding(top = contentPadding.calculateTopPadding()))
+        }
+        composable(AppRoute.Food.route) {
+            FoodScreen(modifier = Modifier.padding(top = contentPadding.calculateTopPadding()))
+        }
+        composable(AppRoute.Shopping.route) {
+            ShoppingScreen(modifier = Modifier.padding(top = contentPadding.calculateTopPadding()))
+        }
+        composable(AppRoute.RouteTracking.route) {
+            RouteTrackingScreen(
+                modifier = Modifier.padding(top = contentPadding.calculateTopPadding()),
                 onBack = { navController.popBackStack() },
             )
         }
