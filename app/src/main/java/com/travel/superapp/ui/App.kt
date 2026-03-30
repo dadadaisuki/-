@@ -20,6 +20,7 @@ import com.travel.superapp.ui.screens.FindGuideScreen
 import com.travel.superapp.ui.screens.HomeScreen
 import com.travel.superapp.ui.screens.MineScreen
 import com.travel.superapp.ui.screens.PostScreen
+import com.travel.superapp.ui.screens.SettingsScreen
 import com.travel.superapp.ui.screens.SimpleEntryScreen
 import com.travel.superapp.ui.widgets.SuperBottomBar
 
@@ -81,7 +82,19 @@ private fun AppNavHost(
         composable(AppRoute.FindGuide.route) { FindGuideScreen(contentPadding) }
         composable(AppRoute.Ai.route) { AiScreen(contentPadding) }
         composable(AppRoute.Post.route) { PostScreen(contentPadding) }
-        composable(AppRoute.Mine.route) { MineScreen(contentPadding) }
+        composable(AppRoute.Mine.route) {
+            MineScreen(
+                contentPadding = contentPadding,
+                onOpenSettings = { navController.navigate(AppRoute.Settings.route) },
+                onLogout = { /* TODO: 退出登录 */ },
+            )
+        }
+        composable(AppRoute.Settings.route) {
+            SettingsScreen(
+                contentPadding = contentPadding,
+                onBack = { navController.popBackStack() },
+            )
+        }
 
         AppRoute.entryRoutes.forEach { route ->
             composable(route) { backStack ->

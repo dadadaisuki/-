@@ -15,6 +15,7 @@ sealed class AppRoute(
     data object Ai : AppRoute("tab/ai")
     data object Post : AppRoute("tab/post")
     data object Mine : AppRoute("tab/mine")
+    data object Settings : AppRoute("settings")
 
     companion object {
         val tabRoutes: List<TabItem> = listOf(
