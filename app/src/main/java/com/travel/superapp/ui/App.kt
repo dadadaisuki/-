@@ -1,0 +1,148 @@
+package com.travel.superapp.ui
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.travel.superapp.ui.nav.AppRoute
+import com.travel.superapp.ui.screens.AiScreen
+import com.travel.superapp.ui.screens.FindGuideScreen
+import com.travel.superapp.ui.screens.FootprintScreen
+import com.travel.superapp.ui.screens.FoodScreen
+import com.travel.superapp.ui.screens.HomeScreen
+import com.travel.superapp.ui.screens.MineScreen
+import com.travel.superapp.ui.screens.PostScreen
+import com.travel.superapp.ui.screens.SettingsScreen
+import com.travel.superapp.ui.screens.ShoppingScreen
+import com.travel.superapp.ui.screens.SimpleEntryScreen
+import com.travel.superapp.ui.screens.map.RouteTrackingScreen
+import com.travel.superapp.ui.widgets.SuperBottomBar
+
+@Composable
+fun App() {
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = backStackEntry?.destination
+
+    Scaffold(
+        bottomBar = {
+            SuperBottomBar(
+                selectedRoute = AppRoute.tabRoutes.firstOrNull { tab ->
+                    currentDestination?.hierarchy?.any { it.route == tab.route } == true
+                }?.route ?: AppRoute.Home.route,
+                onTabSelected = { route ->
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onAiClick = {
+                    navController.navigate(AppRoute.Ai.route) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Box(Modifier.fillMaxSize()) {
+            AppNavHost(
+                navController = navController,
+                contentPadding = innerPadding,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppNavHost(
+    navController: NavHostController,
+    contentPadding: PaddingValues,
+) {
+    NavHost(
+        navController = navController,
+        startDestination = AppRoute.Home.route,
+    ) {
+        composable(AppRoute.Home.route) {
+            HomeScreen(
+                contentPadding = contentPadding,
+                onOpenEntry = { entryRoute ->
+                    navController.navigate(entryRoute)
+                },
+            )
+        }
+        composable(AppRoute.FindGuide.route) { FindGuideScreen(contentPadding) }
+        composable(AppRoute.Ai.route) { AiScreen(contentPadding) }
+        composable(AppRoute.Post.route) { PostScreen(contentPadding) }
+        composable(AppRoute.Mine.route) {
+            MineScreen(
+                contentPadding = contentPadding,
+                onOpenSettings = { navController.navigate(AppRoute.Settings.route) },
+                onLogout = { /* TODO: 退出登录 */ },
+            )
+        }
+        composable(AppRoute.Settings.route) {
+            SettingsScreen(
+                contentPadding = contentPadding,
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        // 主页入口页面 -> 真实屏幕
+        composable(AppRoute.MapLights.route) {
+            com.travel.superapp.ui.screens.map.MapScreen(
+                modifier = Modifier.padding(top = contentPadding.calculateTopPadding()),
+            )
+        }
+        composable(AppRoute.MyFootprints.route) {
+            FootprintScreen(modifier = Modifier.padding(top = contentPadding.calculateTopPadding()))
+        }
+        composable(AppRoute.Food.route) {
+            FoodScreen(modifier = Modifier.padding(top = contentPadding.calculateTopPadding()))
+        }
+        composable(AppRoute.Shopping.route) {
+            ShoppingScreen(modifier = Modifier.padding(top = contentPadding.calculateTopPadding()))
+        }
+        composable(AppRoute.RouteTracking.route) {
+            RouteTrackingScreen(
+                modifier = Modifier.padding(top = contentPadding.calculateTopPadding()),
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable("entry/bike") {
+            com.travel.superapp.ui.screens.BikeModuleScreen(onBack = { navController.popBackStack() })
+        }
+        composable("entry/car") {
+            com.travel.superapp.ui.screens.CarTourModuleScreen(onBack = { navController.popBackStack() })
+        }
+        composable("entry/group") {
+            com.travel.superapp.ui.screens.GroupModuleScreen(onBack = { navController.popBackStack() })
+        }
+        AppRoute.entryRoutes.forEach { route ->
+            if (route !in listOf("entry/bike", "entry/car", "entry/group")) {
+                composable(route) { backStack ->
+                    SimpleEntryScreen(
+                        title = backStack.destination.route ?: "页面",
+                        contentPadding = contentPadding,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+            }
+        }
+    }
+}
+
