@@ -14,26 +14,30 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
@@ -42,13 +46,16 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -57,6 +64,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -71,8 +79,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.setValue                                              
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,20 +93,300 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.travel.superapp.data.ai.ChatBubble
+import com.travel.superapp.data.ai.DeepSeekRepository
+import com.travel.superapp.data.ai.MessageRole
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiScreen(contentPadding: PaddingValues) {
+    val repository = remember { DeepSeekRepository() }
+    val chatMessages by repository.messages.collectAsState()
+    val isTyping by repository.isTyping.collectAsState()
+
+    var inputText by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    // 初始化对话
+    LaunchedEffect(Unit) {
+        repository.initConversation()
+    }
+
+    // 新消息到来时自动滚动到底部
+    LaunchedEffect(chatMessages.size) {
+        if (chatMessages.isNotEmpty()) {
+            coroutineScope.launch {
+                listState.animateScrollToItem(chatMessages.lastIndex)
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "AI",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Spacer(Modifier.size(10.dp))
+                        Column {
+                            Text(
+                                text = "旅行 AI 助手",
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = "Powered by DeepSeek",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { repository.clearConversation() }) {
+                        Icon(
+                            Icons.Filled.Refresh,
+                            contentDescription = "清空对话",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .padding(innerPadding)
+                .imePadding(),
+        ) {
+            // ===== 消息列表 =====
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
+            ) {
+                items(chatMessages, key = { it.id }) { bubble ->
+                    ChatBubbleItem(bubble = bubble)
+                }
+
+                // 正在输入的提示
+                if (isTyping && chatMessages.lastOrNull()?.role == MessageRole.ASSISTANT) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(max = 260.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                    ) {}
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                                    ) {}
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                                    ) {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // ===== 输入栏 =====
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("问我任何关于旅行的问题...") },
+                    maxLines = 4,
+                    enabled = !isTyping,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    ),
+                )
+                Spacer(Modifier.size(8.dp))
+                IconButton(
+                    onClick = {
+                        val text = inputText.trim()
+                        if (text.isNotEmpty() && !isTyping) {
+                            inputText = ""
+                            coroutineScope.launch {
+                                repository.sendStreamMessage(text)
+                            }
+                        }
+                    },
+                    enabled = inputText.isNotBlank() && !isTyping,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (inputText.isNotBlank() && !isTyping)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                ) {
+                    if (isTyping) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.Send,
+                            contentDescription = "发送",
+                            tint = if (inputText.isNotBlank())
+                                MaterialTheme.colorScheme.onPrimary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatBubbleItem(bubble: ChatBubble) {
+    val isUser = bubble.role == MessageRole.USER
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(contentPadding)
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
     ) {
-        Text("问AI（前端占位）")
-        Text("后续接入 DeepSeek：对话、行程规划、景点问答等。")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            // 头像
+            if (!isUser) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "AI",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Spacer(Modifier.size(6.dp))
+            }
+
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 280.dp)
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = if (isUser) 16.dp else 4.dp,
+                            bottomEnd = if (isUser) 4.dp else 16.dp,
+                        )
+                    )
+                    .background(
+                        if (isUser)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                    .padding(12.dp),
+            ) {
+                Text(
+                    text = bubble.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isUser)
+                        MaterialTheme.colorScheme.onPrimary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // 用户头像
+            if (isUser) {
+                Spacer(Modifier.size(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "我",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -107,31 +397,41 @@ fun PostScreen(contentPadding: PaddingValues) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    var modeIndex by remember { mutableStateOf(0) } // 0=文字, 1=图片
-    val mode = when (modeIndex) {
-        0 -> PostMode.TextOnly
-        else -> PostMode.ImagesOnly
-    }
-
+    // 表单状态
     var textContent by remember { mutableStateOf("") }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
-
     var showLocation by remember { mutableStateOf(false) }
     var locationText by remember { mutableStateOf("") }
-
     var tagText by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    // 发布状态
+    var isPublishing by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableStateOf<String?>(null) }  // 如 "上传中 (2/5)"
+
+    fun hasContent(): Boolean =
+        textContent.trim().isNotEmpty() || selectedImages.isNotEmpty()
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents(),
     ) { uris ->
         if (uris.isNullOrEmpty()) return@rememberLauncherForActivityResult
-        // 限制最多 9 张，避免 UI 太卡
-        val next = uris.take(9).toList()
+        val next = (selectedImages + uris.toList()).distinctBy { it.toString() }.take(9)
         selectedImages = next
         coroutineScope.launch {
-            snackbarHostState.showSnackbar("已选择 ${next.size} 张图片（前端预览）")
+            snackbarHostState.showSnackbar("已选择 ${next.size} 张图片")
         }
+    }
+
+    fun resetForm() {
+        textContent = ""
+        selectedImages = emptyList()
+        showLocation = false
+        locationText = ""
+        tags = emptyList()
+        tagText = ""
+        isPublishing = false
+        uploadProgress = null
     }
 
     Scaffold(
@@ -152,26 +452,81 @@ fun PostScreen(contentPadding: PaddingValues) {
             ) {
                 Button(
                     onClick = {
-                        val trimmedText = textContent.trim()
-                        if (mode == PostMode.TextOnly && trimmedText.isEmpty()) {
-                            coroutineScope.launch { snackbarHostState.showSnackbar("请输入文字内容后再发布") }
-                            return@Button
-                        }
-                        if (mode == PostMode.ImagesOnly && selectedImages.isEmpty()) {
-                            coroutineScope.launch { snackbarHostState.showSnackbar("请选择图片后再发布") }
-                            return@Button
-                        }
                         if (showLocation && locationText.trim().isEmpty()) {
-                            coroutineScope.launch { snackbarHostState.showSnackbar("开启显示地理位置后，请填写地点") }
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("开启显示地理位置后，请填写地点")
+                            }
                             return@Button
                         }
                         coroutineScope.launch {
-                            snackbarHostState.showSnackbar("已创建草稿（前端）: ${trimmedText.take(12)}")
+                            val userId = com.travel.superapp.data.auth.AuthManager.currentUserId ?: run {
+                                snackbarHostState.showSnackbar("请先登录后再发布")
+                                return@launch
+                            }
+                            isPublishing = true
+                            val postRepo = com.travel.superapp.data.repository.PostRepository()
+                            val result = postRepo.createPostWithImages(
+                                userId = userId,
+                                context = context,
+                                imageUris = selectedImages,
+                                textContent = textContent.trim().ifEmpty { null },
+                                locationName = if (showLocation) locationText.trim() else null,
+                                showLocation = showLocation,
+                                tags = tags,
+                                onImageUploaded = { uploaded, total ->
+                                    uploadProgress = "上传中 ($uploaded/$total)"
+                                },
+                            )
+                            isPublishing = false
+                            uploadProgress = null
+                            result.fold(
+                                onSuccess = {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("发布成功！")
+                                    }
+                                    resetForm()
+                                },
+                                onFailure = {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("发布失败：${it.message}")
+                                    }
+                                },
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = hasContent() && !isPublishing,
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
                 ) {
-                    Text("发布")
+                    if (isPublishing) {
+                        if (uploadProgress != null) {
+                            Icon(
+                                Icons.Filled.Photo,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.size(8.dp))
+                            Text(uploadProgress!!)
+                        } else {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.size(8.dp))
+                            Text("发布中...")
+                        }
+                    } else {
+                        Icon(
+                            Icons.Filled.Article,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.size(8.dp))
+                        Text("发布")
+                    }
                 }
             }
         },
@@ -187,82 +542,122 @@ fun PostScreen(contentPadding: PaddingValues) {
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ModeSelector(
-                    modeIndex = modeIndex,
-                    onModeChange = { modeIndex = it },
-                )
-
+                // ===== 文字内容输入 =====
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text(
-                            text = if (mode == PostMode.TextOnly) "文字内容" else "图片内容",
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        Spacer(Modifier.height(8.dp))
-
-                        if (mode == PostMode.TextOnly) {
-                            OutlinedTextField(
-                                value = textContent,
-                                onValueChange = { textContent = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = { Text("写下你的旅行记录...") },
-                                minLines = 6,
-                                maxLines = 8,
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        ) {
+                            Text("文字内容", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "${textContent.length}/1000",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        } else {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Button(
-                                    onClick = { imagePicker.launch("image/*") },
-                                ) {
-                                    Icon(Icons.Filled.Photo, contentDescription = "选择图片")
-                                    Spacer(Modifier.size(8.dp))
-                                    Text("选择图片")
-                                }
-                                if (selectedImages.isNotEmpty()) {
-                                    Button(
-                                        onClick = { selectedImages = emptyList() },
-                                    ) {
-                                        Icon(Icons.Filled.Delete, contentDescription = "清空图片")
-                                        Spacer(Modifier.size(8.dp))
-                                        Text("清空")
-                                    }
-                                }
-                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = textContent,
+                            onValueChange = { if (it.length <= 1000) textContent = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("写下你的旅行故事...（可选）") },
+                            minLines = 4,
+                            maxLines = 8,
+                            enabled = !isPublishing,
+                        )
+                    }
+                }
 
-                            Spacer(Modifier.height(10.dp))
-                            if (selectedImages.isNotEmpty()) {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(3),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    userScrollEnabled = false,
-                                ) {
-                                    gridItems(selectedImages) { uri ->
-                                        ImageTile(
-                                            context = context,
-                                            uri = uri,
-                                            onRemove = { selectedImages = selectedImages.filterNot { it == uri } },
-                                        )
-                                    }
-                                }
-                            } else {
-                                Text(
-                                    text = "暂无图片。选择后将显示在这里。",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                // ===== 图片选择 =====
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        ) {
+                            Text("添加图片", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "${selectedImages.size}/9",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = { imagePicker.launch("image/*") },
+                                enabled = !isPublishing,
+                            ) {
+                                Icon(Icons.Filled.Photo, contentDescription = null)
+                                Spacer(Modifier.size(6.dp))
+                                Text("选择图片")
                             }
+                            if (selectedImages.isNotEmpty()) {
+                                OutlinedButton(
+                                    onClick = { selectedImages = emptyList() },
+                                    enabled = !isPublishing,
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error,
+                                    ),
+                                ) {
+                                    Icon(Icons.Filled.Delete, contentDescription = null)
+                                    Spacer(Modifier.size(6.dp))
+                                    Text("清空")
+                                }
+                            }
+                        }
+
+                        if (selectedImages.isNotEmpty()) {
+                            Spacer(Modifier.height(10.dp))
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(((selectedImages.size + 2) / 3 * 96).dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                userScrollEnabled = false,
+                            ) {
+                                gridItems(selectedImages) { uri ->
+                                    ImageTile(
+                                        context = context,
+                                        uri = uri,
+                                        onRemove = {
+                                            if (!isPublishing) {
+                                                selectedImages = selectedImages.filterNot { it == uri }
+                                            }
+                                        },
+                                        isRemoving = isPublishing,
+                                    )
+                                }
+                            }
+                        } else {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "暂无图片。最多支持 9 张图片。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
 
+                // ===== 地理位置 =====
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -276,7 +671,7 @@ fun PostScreen(contentPadding: PaddingValues) {
                             Text("显示地理位置", style = MaterialTheme.typography.titleSmall)
                             Switch(
                                 checked = showLocation,
-                                onCheckedChange = { showLocation = it },
+                                onCheckedChange = { if (!isPublishing) showLocation = it },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = MaterialTheme.colorScheme.primary,
                                 ),
@@ -286,44 +681,68 @@ fun PostScreen(contentPadding: PaddingValues) {
                             Spacer(Modifier.height(10.dp))
                             OutlinedTextField(
                                 value = locationText,
-                                onValueChange = { locationText = it },
+                                onValueChange = { if (!isPublishing) locationText = it },
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = { Text("例：上海外滩 / 成都宽窄巷子") },
                                 singleLine = true,
-                                leadingIcon = { Icon(Icons.Filled.LocationOn, contentDescription = null) },
+                                enabled = !isPublishing,
+                                leadingIcon = {
+                                    Icon(Icons.Filled.LocationOn, contentDescription = null)
+                                },
                             )
                         }
                     }
                 }
 
+                // ===== 标签 =====
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text("添加标签（支持回车添加）", style = MaterialTheme.typography.titleSmall)
-                        Spacer(Modifier.height(10.dp))
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                         ) {
-                            items(tags) { tag ->
-                                FilterChip(
-                                    selected = true,
-                                    onClick = { tags = tags.filterNot { it == tag } },
-                                    label = {
-                                        Text(
-                                            text = tag,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
+                            Text("添加标签", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "${tags.size}/12",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+
+                        if (tags.isNotEmpty()) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                items(tags) { tag ->
+                                    FilterChip(
+                                        selected = true,
+                                        onClick = {
+                                            if (!isPublishing) {
+                                                tags = tags.filterNot { it == tag }
+                                            }
+                                        },
+                                        label = { Text("#$tag") },
+                                        trailingIcon = {
+                                            if (!isPublishing) {
+                                                Icon(
+                                                    Icons.Filled.Close,
+                                                    contentDescription = "移除",
+                                                    modifier = Modifier.size(14.dp),
+                                                )
+                                            }
+                                        },
+                                    )
+                                }
                             }
+                            Spacer(Modifier.height(8.dp))
                         }
 
-                        Spacer(Modifier.height(10.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -331,12 +750,13 @@ fun PostScreen(contentPadding: PaddingValues) {
                         ) {
                             OutlinedTextField(
                                 value = tagText,
-                                onValueChange = { tagText = it },
+                                onValueChange = { if (!isPublishing) tagText = it },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(56.dp),
-                                placeholder = { Text("例如：#美食 #拍照 #亲子") },
+                                placeholder = { Text("输入标签，回车添加") },
                                 singleLine = true,
+                                enabled = !isPublishing,
                             )
                             Button(
                                 onClick = {
@@ -348,6 +768,7 @@ fun PostScreen(contentPadding: PaddingValues) {
                                     tags = next
                                     tagText = ""
                                 },
+                                enabled = !isPublishing && tagText.isNotBlank(),
                             ) {
                                 Text("添加")
                             }
@@ -355,37 +776,34 @@ fun PostScreen(contentPadding: PaddingValues) {
                         if (tags.isEmpty()) {
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                text = "建议 3-5 个标签，方便搜索与分发。",
+                                "建议添加 3-5 个标签，方便搜索与分发",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
 
-                Spacer(Modifier.height(60.dp))
+                // 发布条件提示
+                if (!hasContent() && !isPublishing) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        ),
+                    ) {
+                        Text(
+                            "请输入文字内容或添加图片后再发布",
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(80.dp))
             }
-        }
-    }
-}
-
-private enum class PostMode {
-    TextOnly,
-    ImagesOnly,
-}
-
-@Composable
-private fun ModeSelector(
-    modeIndex: Int,
-    onModeChange: (Int) -> Unit,
-) {
-    val titles = listOf("纯文字发布", "图片发布")
-    TabRow(selectedTabIndex = modeIndex) {
-        titles.forEachIndexed { idx, title ->
-            androidx.compose.material3.Tab(
-                selected = modeIndex == idx,
-                onClick = { onModeChange(idx) },
-                text = { Text(title) },
-            )
         }
     }
 }
@@ -395,6 +813,7 @@ private fun ImageTile(
     context: Context,
     uri: Uri,
     onRemove: () -> Unit,
+    isRemoving: Boolean = false,
 ) {
     val bitmap = remember(uri) {
         runCatching {
@@ -426,6 +845,7 @@ private fun ImageTile(
 
         IconButton(
             onClick = onRemove,
+            enabled = !isRemoving,
             modifier = Modifier
                 .align(androidx.compose.ui.Alignment.TopEnd)
                 .padding(6.dp)

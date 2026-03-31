@@ -3,6 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.0.21"
     // Kotlin 2.0+：Compose 必须用独立编译器插件（不要再写 composeOptions.kotlinCompilerExtensionVersion）
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+    // Kotlin Serialization
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21"
 }
 
 android {
@@ -77,6 +79,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.0.4")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
 
-    // Later: images/networking, etc.
+    // Kotlin Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
-

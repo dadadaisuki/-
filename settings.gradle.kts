@@ -16,7 +16,7 @@ dependencyResolutionManagement {
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         google()
-        mavenCentral()
+        mavenCentral() // 兜底：Aliyun 镜像缺失的库直接从 Maven Central 下载
     }
 }
 
